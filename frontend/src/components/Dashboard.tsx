@@ -10,6 +10,7 @@ import { StudyPlan } from '../utils/api';
 import api from '../utils/api';
 import AddStudySessionModal from './AddStudySessionModal';
 import { useStudyContext } from "./context/StudyContext";
+import { useStudyStats } from "../hooks/useStudyStats";
 
 interface DashboardProps {
   user: User;
@@ -24,67 +25,21 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user, onReset, setActiveTab, studyPlans, fetchStudyPlans, isLoading, error }) => {
   const { sessions, syncStudyPlans, subjects, addSession } = useStudyContext();
   const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
-  console.log(sessions);
-
-  // Map sessions to include subject and mood for compatibility with helpers
   const mappedSessions = sessions.map((s) => ({
     ...s,
     subject: subjects.find(sub => sub.id === s.subjectId)?.name || 'Unknown',
     mood: (s as any).mood || 'focused',
     duration: s.duration,
   }));
+  const { totalMinutes, todayMinutes, weekMinutes, streak } = useStudyStats(mappedSessions);
+  console.log(sessions);
 
   const dailyStats: DailyStats[] = calculateDailyStats(mappedSessions);
   const recentSessions = [...mappedSessions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
-  const today = new Date().toISOString().split("T")[0];
-  const todaySessions = sessions.filter((session) => session.date === today);
-  const todayMinutes = todaySessions.reduce(
-    (sum, session) => sum + session.duration,
-    0
-  );
-
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const weekSessions = sessions.filter(
-    (session) => new Date(session.date) >= oneWeekAgo
-  );
-  const weekMinutes = weekSessions.reduce(
-    (sum, session) => sum + session.duration,
-    0
-  );
-
   const subjectDistribution = groupBySubject(mappedSessions);
-
-  // Calculate current streak based on actual study days (not just from user prop)
-  // Assumes sessions are sorted by date descending
-  const uniqueStudyDates = Array.from(
-    new Set(sessions.map((s) => s.date))
-  ).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-
-  let streak = 0;
-  let currentDate = new Date(today);
-
-  for (let i = 0; i < uniqueStudyDates.length; i++) {
-    const studyDate = new Date(uniqueStudyDates[i]);
-    if (
-      studyDate.toISOString().split("T")[0] ===
-      currentDate.toISOString().split("T")[0]
-    ) {
-      streak++;
-      currentDate.setDate(currentDate.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-
-  // Use calculated streak instead of user.currentStreak
-  user = { ...user, currentStreak: streak };
-
-  // Calculate total study time from all sessions
-  const totalMinutes = sessions.reduce((sum, session) => sum + session.duration, 0);
 
   const handleSessionAdded = () => {
     fetchStudyPlans();
@@ -143,65 +98,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onReset, setActiveTab, stud
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border-l-4 border-indigo-500">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-gray-500 font-medium mb-1">
-                Today's Study Time
-              </p>
-              <h3 className="text-2xl font-semibold text-gray-800">
-                {formatTime(todayMinutes)}
-              </h3>
-            </div>
-            <div className="bg-indigo-100 p-3 rounded-lg">
-              <Clock size={24} className="text-indigo-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border-l-4 border-teal-500">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-gray-500 font-medium mb-1">
-                Weekly Study Time
-              </p>
-              <h3 className="text-2xl font-semibold text-gray-800">
-                {formatTime(weekMinutes)}
-              </h3>
-            </div>
-            <div className="bg-teal-100 p-3 rounded-lg">
-              <Calendar size={24} className="text-teal-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border-l-4 border-purple-500">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-gray-500 font-medium mb-1">Current Streak</p>
-              <h3 className="text-2xl font-semibold text-gray-800">
-                {user.currentStreak} days
-              </h3>
-            </div>
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <Zap size={24} className="text-purple-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border-l-4 border-amber-500">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-gray-500 font-medium mb-1">Total Study Time</p>
-              <h3 className="text-2xl font-semibold text-gray-800">
-                {formatTime(totalMinutes)}
-              </h3>
-            </div>
-            <div className="bg-amber-100 p-3 rounded-lg">
-              <Award size={24} className="text-amber-600" />
-            </div>
-          </div>
-        </div>
+        <StatCard label="Today's Study Time" value={formatTime(todayMinutes)} icon={<Clock size={24} className="text-indigo-600" />} color="indigo" />
+        <StatCard label="Weekly Study Time" value={formatTime(weekMinutes)} icon={<Calendar size={24} className="text-teal-600" />} color="teal" />
+        <StatCard label="Current Streak" value={`${streak} days`} icon={<Zap size={24} className="text-purple-600" />} color="purple" />
+        <StatCard label="Total Study Time" value={formatTime(totalMinutes)} icon={<Award size={24} className="text-amber-600" />} color="amber" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
@@ -336,5 +236,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onReset, setActiveTab, stud
     </div>
   );
 };
+
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ label, value, icon, color }) => (
+  <div className={`bg-white rounded-lg shadow-md p-4 sm:p-6 border-l-4 border-${color}-500`}>
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-gray-500 font-medium mb-1">{label}</p>
+        <h3 className="text-2xl font-semibold text-gray-800">{value}</h3>
+      </div>
+      <div className={`bg-${color}-100 p-3 rounded-lg`}>{icon}</div>
+    </div>
+  </div>
+);
 
 export default Dashboard;
