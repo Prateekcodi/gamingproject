@@ -23,7 +23,9 @@ app = FastAPI(
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for debugging
+    allow_origins=[
+        "https://studifyka.netlify.app/",  # Replace with your actual Netlify URL
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
