@@ -1,48 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from "react";
+import { StudySession } from "../types";
 
-function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
-  // Get from local storage then parse stored json or return initialValue
-  const readValue = (): T => {
-    if (typeof window === 'undefined') {
-      return initialValue;
-    }
+export function useStudyStats(sessions: StudySession[]) {
+  const today = new Date().toISOString().split("T")[0];
 
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? (JSON.parse(item) as T) : initialValue;
-    } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
-    }
-  };
+  return useMemo(() => {
+    const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
 
-  // State to store our value
-  const [storedValue, setStoredValue] = useState<T>(readValue);
+    const todayMinutes = sessions
+      .filter((s) => s.date === today)
+      .reduce((sum, s) => sum + s.duration, 0);
 
-  // Return a wrapped version of useState's setter function that persists the new value to localStorage
-  const setValue = (value: T | ((val: T) => T)) => {
-    try {
-      // Allow value to be a function so we have same API as useState
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      
-      // Save state
-      setStoredValue(valueToStore);
-      
-      // Save to local storage
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const weekMinutes = sessions
+      .filter((s) => new Date(s.date) >= oneWeekAgo)
+      .reduce((sum, s) => sum + s.duration, 0);
+
+    // Streak calculation
+    const uniqueDates = Array.from(new Set(sessions.map((s) => s.date))).sort(
+      (a, b) => new Date(b).getTime() - new Date(a).getTime()
+    );
+    let streak = 0;
+    let currentDate = new Date(today);
+    for (let i = 0; i < uniqueDates.length; i++) {
+      const studyDate = new Date(uniqueDates[i]);
+      if (
+        studyDate.toISOString().split("T")[0] ===
+        currentDate.toISOString().split("T")[0]
+      ) {
+        streak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
       }
-    } catch (error) {
-      console.warn(`Error setting localStorage key "${key}":`, error);
     }
-  };
 
-  useEffect(() => {
-    setStoredValue(readValue());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return [storedValue, setValue];
-}
-
-export default useLocalStorage;
+    return { totalMinutes, todayMinutes, weekMinutes, streak };
+  }, [sessions, today]);
+} 
