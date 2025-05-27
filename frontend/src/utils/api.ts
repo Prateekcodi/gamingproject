@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE = 'http://localhost:8000/api/study-plans/';
+const API_BASE = 'https://react-python-fsd-v1-main-production.up.railway.app/api/study-plans/';
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
