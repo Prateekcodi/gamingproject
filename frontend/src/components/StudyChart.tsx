@@ -38,6 +38,7 @@ const StudyChart: React.FC<StudyChartProps> = ({ dailyStats }) => {
           stroke="#555"
           tickFormatter={(min) => formatTimeLabel(min)}
           interval={0}
+          width={60}
         />
         <Tooltip
           formatter={(value: any) => formatTimeLabel(value)}
