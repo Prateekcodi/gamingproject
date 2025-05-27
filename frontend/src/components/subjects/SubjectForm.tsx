@@ -41,7 +41,7 @@ const SubjectForm: React.FC = () => {
     };
 
     try {
-      const response = await fetch("http://localhost:8000/api/study-plans/", {
+      const response = await fetch("https://react-python-fsd-v1-main-production.up.railway.app/api/study-plans/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
