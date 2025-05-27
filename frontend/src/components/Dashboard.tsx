@@ -83,6 +83,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onReset, setActiveTab, stud
   // Use calculated streak instead of user.currentStreak
   user = { ...user, currentStreak: streak };
 
+  // Calculate total study time from all sessions
+  const totalMinutes = sessions.reduce((sum, session) => sum + session.duration, 0);
+
   const handleSessionAdded = () => {
     fetchStudyPlans();
   };
@@ -191,7 +194,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onReset, setActiveTab, stud
             <div>
               <p className="text-gray-500 font-medium mb-1">Total Study Time</p>
               <h3 className="text-2xl font-semibold text-gray-800">
-                {formatTime(user.totalStudyHours * 60)}
+                {formatTime(totalMinutes)}
               </h3>
             </div>
             <div className="bg-amber-100 p-3 rounded-lg">
